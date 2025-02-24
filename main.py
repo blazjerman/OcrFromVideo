@@ -1,7 +1,11 @@
 import cv2
-from PIL import Image
 import easyocr
 
+
+
+
+def progress(max, now):
+    print(f"\rProgress: {round(100 * now / max)}%", end="", flush=True)
 
 def video_to_frames(video_path, frame_rate=1):
 
@@ -13,28 +17,31 @@ def video_to_frames(video_path, frame_rate=1):
         return []
 
     fps = cap.get(cv2.CAP_PROP_FPS)
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     if frame_rate <= 0 or frame_rate > fps: frame_rate = 1
     interval = int(fps / frame_rate)
 
-    frame_index = 0
+    print(f"Extracting frames.")
+
+    index = 0
 
     while True:
         ret, frame = cap.read()
+        progress(frame_count, index)
         if not ret:
             break
-        if frame_index % interval == 0: frames.append(frame)
-        frame_index += 1
+        if index % interval == 0: frames.append(frame)
+        index += 1
 
     cap.release()
-    print(f"Extracted {len(frames)} frames.")
+
+    progress(1,1)
+    print()
+    print("Extraction done.")
+
     return frames
 
-
-
-def open_image(image):
-    pil_image = Image.fromarray(image)
-    pil_image.show()
 
 
 
@@ -44,11 +51,15 @@ def ocr(frames_array, position, reader):
 
     end = (position.x + position.width), (position.y + position.height)
 
-    if len(frames_array) > 0:
-        open_image(frames_array[0][position.y:end[1], position.x:end[0]])
+    print("Running ocr on " + position.name)
 
-    for frame in frames_array:
+    for index, frame in enumerate(frames_array):
         text_array.append(reader.readtext(frame[position.y:end[1], position.x:end[0]]))
+        progress(len(frames_array), index)
+
+    progress(1,1)
+    print()
+    print("Ocr on " + position.name + " done.")
 
     return text_array
 
@@ -67,12 +78,15 @@ def process_video(video_path, frame_rate, positions_array, languages):
 
         text_array = []
 
-        for detection in detections:
+        for index, detection in enumerate(detections):
             text = ""
             for det in detection:
                 text += det[1]
             text_array.append(text)
 
+
         data.append((position.name, text_array))
+
+
 
     return data
